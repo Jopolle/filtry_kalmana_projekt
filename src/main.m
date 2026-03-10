@@ -29,41 +29,19 @@ fprintf('Noise standard deviation = %.6f\n', noise_std);
 
 % 'K' parameter identification (LS)
 idx = 51:length(t);          
-sqrt_h2 = sqrt(max(h2(idx), 0));
-numerator   = sum(sqrt_h2 .* q2_meas(idx));
-denominator = sum(h2(idx));
+sqrt_h2_q2 = sqrt(max(h2(idx), 0));
+numerator   = sum(sqrt_h2_q2 .* q2_meas(idx));
+denominator = sum(sqrt_h2_q2.^2);
 k_hat = numerator / denominator;
 fprintf('=============== Model parameters ==============\n'); 
 fprintf('K_hat = %.6e\n', k_hat);
 
-% Model output for estimated k
-q2_model = k_hat * sqrt_h2;
-
-% Validation of parameter K value on figures
-% figure;
-% subplot(2,1,1)
-% plot(t(idx), q2_meas(idx), 'b', 'LineWidth', 1.2); hold on;
-% plot(t(idx), q2_model, 'r--', 'LineWidth', 1.5);
-% grid on;
-% xlabel('Time');
-% ylabel('Outlet flow q_2');
-% legend('Measured q_2', 'Model: k\_hat \cdot sqrt(h_2)', 'Location', 'best');
-% title('Measured and modeled q2 flow in time');
-% subplot(2,1,2)
-% plot(sqrt_h2, q2_meas(idx), 'bo'); hold on;
-% plot(sqrt_h2, q2_model, 'r.', 'MarkerSize', 12);
-% grid on;
-% xlabel('sqrt(h_2)');
-% ylabel('Outlet flow q_2');
-% legend('Measurements', 'Model', 'Location', 'best');
-% title('Relationship between q_2 and sqrt(h_2)');
-
 % 'α', 'S_2' parameters identification (LS)
 idx2 = 52:(length(t)-1);
-dh2 = ((h2(idx2+1)-h2(idx2-1))/(0.5));      % h2 derivates vector
+dh2 = (h2(idx2+1) - h2(idx2-1)) / 0.5;
 Y = dh2(:);
-sqrt_h2 = sqrt(max(h2(idx2), 0));
-Phi = [h1(idx2)-h2(idx2), -sqrt_h2];
+sqrt_h2_dh2 = sqrt(max(h2(idx2), 0));
+Phi = [h1(idx2)-h2(idx2), -sqrt_h2_dh2];
 Theta_hat = (Phi' * Phi) \ (Phi' * Y);
 a1_hat = Theta_hat(1);
 a2_hat = Theta_hat(2);
@@ -82,3 +60,10 @@ Psi = Psi(:);
 a3_hat = (Psi' * Y) / (Psi' * Psi);
 S1_hat = 1 / a3_hat;
 fprintf('S1_hat = %.6e\n', S1_hat);
+
+% Model built on estimated parameters 
+q2_model  = k_hat * sqrt_h2_q2;
+dh2_model = Phi * Theta_hat;
+dh1_model = a3_hat * Psi;
+
+plot_identification_results(t, idx, idx2, h1, h2, q2_meas, sqrt_h2_q2, q2_model, dh2, dh2_model, dh1, dh1_model, Psi)
