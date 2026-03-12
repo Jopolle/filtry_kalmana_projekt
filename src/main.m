@@ -3,7 +3,8 @@ clear;
 close all; 
 
 %% Importing data from csv file
-filename = fullfile('..','data', 'group_08.csv');
+%filename = fullfile('..','data', 'group_08.csv');
+filename = fullfile('..','data', 'group_07.csv');
 opts = detectImportOptions(filename, ...
     'Delimiter', ';', ...
     'DecimalSeparator', ',');
