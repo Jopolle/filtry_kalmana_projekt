@@ -82,7 +82,7 @@ P = diag([1e-4, 1e-4]);     % Initial covariance estimate
 % Memory allocation
 x_hat_hist = zeros(2,N);
 x_pred_hist = zeros(2,N);
-y_pred_hist = zeros(2,N);
+y_pred_hist = zeros(1,N);
 innovation_hist = zeros(1,N);
 
 x_hat_hist(:,1) = x_hat;
@@ -142,3 +142,26 @@ for k = 1:N-1
 end
 
 plot_ekf_results(t, h1, h2, q2_meas, x_hat_hist, y_pred_hist, innovation_hist, k_hat);
+
+
+
+
+%% Extended Kalman filter implementation - Task 2
+% x = [h1; h2; q1]
+% q1 is assumed constant but unknown:
+% q1(k+1) = q1(k) + wq
+
+Q2 = diag([1e-6, 1e-6, 1e-8]);
+R2 = sig_hat;
+
+q1_0 = q1(1);
+
+x_hat2 = [h1(1); h2(1); q1_0];
+P2 = diag([1e-4, 1e-4, 1e-3]);
+
+x_hat_hist2 = zeros(3,N);
+x_pred_hist2 = zeros(3,N);
+y_pred_hist2 = zeros(1,N);
+innovation_hist2 = zeros(1,N);
+
+x_hat_hist2(:,1) = x_hat2;
