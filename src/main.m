@@ -67,4 +67,78 @@ q2_model  = k_hat * sqrt_h2_q2;
 dh2_model = Phi * Theta_hat;
 dh1_model = a3_hat * Psi;
 
-plot_identification_results(t, idx, idx2, h1, h2, q2_meas, sqrt_h2_q2, q2_model, dh2, dh2_model, dh1, dh1_model, Psi)
+%plot_identification_results(t, idx, idx2, h1, h2, q2_meas, sqrt_h2_q2, q2_model, dh2, dh2_model, dh1, dh1_model, Psi)
+
+%% Extended Kalman filter implementation - Task I
+% Initialization
+Ts = t(2)-t(1);
+N = length(t);
+
+Q = diag([1e-6, 1e-6]);     % Process noise covariance
+R = sig_hat;                % Measurment noise covariance
+x_hat = [h1(1), h2(1)];     % Initial state estimate
+P = diag([1e-4, 1e-4]);     % Initial covariance estimate
+
+% Memory allocation
+x_hat_hist = zeros(2,N);
+x_pred_hist = zeros(2,N);
+y_pred_hist = zeros(2,N);
+innovation_hist = zeros(1,N);
+
+x_hat_hist(:,1) = x_hat;
+
+for k = 1:N-1
+    
+    % Current corrected state estimate
+    x1 = x_hat(1);
+    x2 = max(x_hat(2),0);
+    
+    % Known nput 
+    u = q1(k);
+
+    % State prediction 
+    x_pred = [
+        x1 + Ts * ((1 / S1_hat) * u - (alpha_hat / S1_hat) * (x1 - x2));
+        x2 + Ts * ((alpha_hat / S2_hat) * (x1 - x2) - (k_hat / S2_hat) * sqrt(x2))
+    ];
+
+    % Calculation Jacobian of the state model
+    A = [
+        1 - Ts * (alpha_hat / S1_hat), Ts * (alpha_hat / S1_hat);
+        Ts * (alpha_hat / S2_hat), 1 - Ts * (alpha_hat / S2_hat) - Ts * (k_hat / (2 * S2_hat * sqrt(max(x2, 1e-9))))
+    ];
+
+    % Covariance prediction
+    P_pred = A * P * A' + Q;
+
+    % Measurement prediciton 
+    x2_pred = max(x_pred(2), 0);
+    y_pred = k_hat * sqrt(x2_pred);
+    
+    % Calculation Jacobian of the measurement model
+    C = [0, k_hat / (2 * sqrt(max(x2_pred, 1e-9)))];
+    
+    % Innovation 
+    innovation = q2_meas(k+1) - y_pred;
+
+    % Innovation covariance
+    S = C * P_pred * C' + R;
+
+    % Kalman gain calculation
+    K = P_pred * C' / S;  
+    
+    % State correction
+    x_hat = x_pred + K * innovation;
+
+    % Covariance correction 
+    P = P_pred - K * S * K';
+
+    % Store results 
+    x_hat_hist(:,k+1) = x_hat;
+    x_pred_hist(:,k+1) = x_pred;
+    y_pred_hist(k+1) = y_pred;
+    innovation_hist(k+1) = innovation;
+
+end
+
+plot_ekf_results(t, h1, h2, q2_meas, x_hat_hist, y_pred_hist, innovation_hist, k_hat);
