@@ -82,7 +82,7 @@ P = diag([1e-4, 1e-4]);     % Initial covariance estimate
 % Memory allocation
 x_hat_hist = zeros(2,N);
 x_pred_hist = zeros(2,N);
-y_pred_hist = zeros(2,N);
+y_pred_hist = zeros(1,N);
 innovation_hist = zeros(1,N);
 
 x_hat_hist(:,1) = x_hat;
@@ -142,3 +142,102 @@ for k = 1:N-1
 end
 
 plot_ekf_results(t, h1, h2, q2_meas, x_hat_hist, y_pred_hist, innovation_hist, k_hat);
+
+
+
+
+%% Extended Kalman filter implementation - Task 2
+% x = [h1; h2; q1]
+% q1 is assumed constant but unknown:
+% q1(k+1) = q1(k) + wq
+
+Q2 = diag([1e-6, 1e-6, 1e-8]);
+R2 = sig_hat;
+
+q1_0 = q1(1);
+
+x_hat2 = [h1(1); h2(1); q1_0];
+P2 = diag([1e-4, 1e-4, 1e-3]);
+
+x_hat_hist2 = zeros(3,N);
+x_pred_hist2 = zeros(3,N);
+y_pred_hist2 = zeros(1,N);
+innovation_hist2 = zeros(1,N);
+
+x_hat_hist2(:,1) = x_hat2;
+
+for k = 1:N-1
+    
+
+    x1 = x_hat2(1);
+    x2 = max(x_hat2(2), 0);
+    u_est = x_hat2(3);   % estimated unknown inflow q1
+
+    x_pred2 = [
+        x1 + Ts * ((1 / S1_hat) * u_est - (alpha_hat / S1_hat) * (x1 - x2));
+        x2 + Ts * ((alpha_hat / S2_hat) * (x1 - x2) - (k_hat / S2_hat) * sqrt(x2));
+        u_est
+    ];
+
+    A2 = [
+        1 - Ts * (alpha_hat / S1_hat),  Ts * (alpha_hat / S1_hat), Ts / S1_hat;
+        Ts * (alpha_hat / S2_hat),      1 - Ts * (alpha_hat / S2_hat) - Ts * (k_hat / (2 * S2_hat * sqrt(max(x2,1e-9)))), 0;
+        0,                              0,                              1
+    ];
+
+    P2_pred = A2 * P2 * A2' + Q2;
+
+    x2_pred = max(x_pred2(2), 0);
+    y_pred2 = k_hat * sqrt(x2_pred);
+
+    C2 = [0, k_hat / (2 * sqrt(max(x2_pred, 1e-9))), 0];
+
+    innovation2 = q2_meas(k+1) - y_pred2;
+
+    S2_innov = C2 * P2_pred * C2' + R2;
+
+    K2 = P2_pred * C2' / S2_innov;
+
+    x_hat2 = x_pred2 + K2 * innovation2;
+
+    x_hat2(2) = max(x_hat2(2), 0);
+
+    P2 = P2_pred - K2 * S2_innov * K2';
+
+    x_hat_hist2(:,k+1) = x_hat2;
+    x_pred_hist2(:,k+1) = x_pred2;
+    y_pred_hist2(k+1) = y_pred2;
+    innovation_hist2(k+1) = innovation2;
+end
+
+
+figure;
+
+subplot(4,1,1);
+plot(t, h1, 'b', 'LineWidth', 1.2); hold on;
+plot(t, x_hat_hist2(1,:), 'r--', 'LineWidth', 1.2);
+grid on;
+ylabel('h1 [m]');
+legend('true h1', 'estimated h1');
+
+subplot(4,1,2);
+plot(t, h2, 'b', 'LineWidth', 1.2); hold on;
+plot(t, x_hat_hist2(2,:), 'r--', 'LineWidth', 1.2);
+grid on;
+ylabel('h2 [m]');
+legend('true h2', 'estimated h2');
+
+subplot(4,1,3);
+plot(t, q1, 'b', 'LineWidth', 1.2); hold on;
+plot(t, x_hat_hist2(3,:), 'r--', 'LineWidth', 1.2);
+grid on;
+ylabel('q1 [m^3/s]');
+legend('true q1', 'estimated q1');
+
+subplot(4,1,4);
+plot(t, q2_meas, 'k', 'LineWidth', 1.0); hold on;
+plot(t, y_pred_hist2, 'g--', 'LineWidth', 1.2);
+grid on;
+xlabel('t [s]');
+ylabel('q2 [m^3/s]');
+legend('measured q2', 'predicted q2');
